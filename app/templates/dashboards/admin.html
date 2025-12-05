@@ -1,0 +1,139 @@
+<!--app/templates/dashboards/admin.html-->
+
+<style>
+th {
+    cursor: pointer;
+    position: relative;
+}
+th .sort-arrow {
+    position: absolute;
+    right: 8px;
+    font-size: 0.8em;
+}
+input.column-filter {
+    width: 100%;
+    padding: 4px;
+    box-sizing: border-box;
+}
+</style>
+
+<table id="orders-table">
+    <thead>
+        <tr>
+            <th data-key="ristorante">Ristorante <span class="sort-arrow"></span></th>
+            <th data-key="order_manager">Order Manager <span class="sort-arrow"></span></th>
+            <th data-key="data_ordine">Data Ordine <span class="sort-arrow"></span></th>
+            <th data-key="prodotto">Prodotto <span class="sort-arrow"></span></th>
+            <th data-key="quantita">Quantità <span class="sort-arrow"></span></th>
+            <th data-key="prezzo_unitario">Prezzo Unitario <span class="sort-arrow"></span></th>
+            <th data-key="prezzo_totale">Prezzo Totale <span class="sort-arrow"></span></th>
+            <th data-key="note">Note <span class="sort-arrow"></span></th>
+        </tr>
+        <tr>
+            <th><input class="column-filter" data-key="ristorante" placeholder="Filtra Ristorante"></th>
+            <th><input class="column-filter" data-key="order_manager" placeholder="Filtra Order Manager"></th>
+            <th><input class="column-filter" data-key="data_ordine" placeholder="Filtra Data"></th>
+            <th><input class="column-filter" data-key="prodotto" placeholder="Filtra Prodotto"></th>
+            <th><input class="column-filter" data-key="quantita" placeholder="Filtra Quantità"></th>
+            <th><input class="column-filter" data-key="prezzo_unitario" placeholder="Filtra Prezzo Unitario"></th>
+            <th><input class="column-filter" data-key="prezzo_totale" placeholder="Filtra Prezzo Totale"></th>
+            <th><input class="column-filter" data-key="note" placeholder="Filtra Note"></th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+let orders = [];
+let currentSort = '';
+let ascending = true;
+
+// Carica solo ordini con inviato = 1
+async function loadOrders() {
+    const resp = await fetch("/ordini/admin/ordini_ristorante");
+    if(!resp.ok) { alert("Errore nel caricamento ordini"); return; }
+
+    const data = await resp.json();
+    orders = data
+    renderTable(orders);
+}
+
+function renderTable(data) {
+    const tbody = document.querySelector("#orders-table tbody");
+    tbody.innerHTML = "";
+
+    data.forEach(o => {
+        const tr = document.createElement("tr");
+        ["ristorante","order_manager","data_ordine","prodotto","quantita","prezzo_unitario","prezzo_totale","note"].forEach(key => {
+            const td = document.createElement("td");
+            let value = o[key];
+
+            if(key === "prezzo_unitario" || key === "prezzo_totale") {
+                value = parseFloat(value).toFixed(2);
+            }
+
+            td.textContent = value;
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+}
+
+function filterTable() {
+    let filtered = orders.slice();
+    document.querySelectorAll(".column-filter").forEach(input => {
+        const val = input.value.toLowerCase();
+        const key = input.dataset.key;
+        if(val) {
+            filtered = filtered.filter(o => o[key].toString().toLowerCase().includes(val));
+        }
+    });
+    renderTable(filtered);
+    updateSortIndicators();
+}
+
+function updateSortIndicators() {
+    document.querySelectorAll("#orders-table th").forEach(th => {
+        const key = th.dataset.key;
+        const arrow = th.querySelector(".sort-arrow");
+        if(!key || !arrow) return;
+        arrow.textContent = (key === currentSort) ? (ascending ? "▲" : "▼") : "";
+    });
+}
+
+// Ordinamento cliccando sulle intestazioni
+document.querySelectorAll("#orders-table th").forEach(th => {
+    th.addEventListener("click", () => {
+        const key = th.dataset.key;
+        if(!key) return;
+
+        if(currentSort === key) ascending = !ascending;
+        else { currentSort = key; ascending = true; }
+
+        orders.sort((a,b) => {
+            let valA = a[key], valB = b[key];
+
+            if(key === 'data_ordine') {
+                valA = new Date(valA);
+                valB = new Date(valB);
+            } else if(!isNaN(valA) && !isNaN(valB)) {
+                valA = Number(valA);
+                valB = Number(valB);
+            }
+
+            if(valA < valB) return ascending ? -1 : 1;
+            if(valA > valB) return ascending ? 1 : -1;
+            return 0;
+        });
+
+        filterTable();
+    });
+});
+
+// Filtri per colonna
+document.querySelectorAll(".column-filter").forEach(input => {
+    input.addEventListener("input", filterTable);
+});
+
+loadOrders();
+</script>

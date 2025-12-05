@@ -1,0 +1,21 @@
+INVIO ORDINI SIMULAZIONE
+
+ORDER MANAGER
+maximillian.kohler93@ethereal.email
+H3PtfYkzkxGmMmY4J2
+
+ADMIN
+gamma@email.com
+password123
+
+SUPERUSER
+superuser@email.com
+superpassword
+
+WINDOW DRESSER
+CiccioBello@lamiamail.it
+qwertyuiop
+
+pROVA
+QWERTY@MAIL.IT
+QAZXDFVBHJNM

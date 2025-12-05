@@ -1,0 +1,19 @@
+<!--app/templates/pending.html-->
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Account in attesa</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin: 50px; }
+    h1 { color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Ciao {{ user.email }}</h1>
+  <p>Il tuo account è stato creato, ma non hai ancora un ruolo assegnato.</p>
+  <p>Un amministratore ti abiliterà presto.</p>
+  <p><a href="/logout">Esci</a></p>
+</body>
+</html>

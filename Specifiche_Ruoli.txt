@@ -1,0 +1,23 @@
+Ruoli e specifiche:
+Gli utenti sono l'order Manager, il Window Dresser e l'Admin
+
+- Il Superuser sono io, devo poter avere accesso a tutte le info, sapere quanti utenti ci sono e così via. 
+	Avere una dashboard che mi permetta di gestire il tutto sarebbe top.
+
+- Order Manager (gestore ordini)
+	È chi gestisce gli ordini del ristorante.
+	Funzionalità:
+	Dalla vetrina degli alimenti, può fare ordini (aggiungere o eliminare quantità di vari prodotti) ed inserirli nel carrello. 
+	All'inserimento della quantità del prodotto, dovrà essere segnalato eventuali anomalie nelle quantità
+	Verso le 16 il carrello farà l'ordine ed invierà tramite mail l'ordine completo all'Order Manager(sé stesso) e verrà spedita una mail per fornitore, 
+	in base ai prodotti scelti (ad esempio banane, mele e kiwi al fornitore Ortofrutta, coste, lonza al fornitore Maiali&Co. e 
+	sardine, cozze, gamberi e vongole al fornitore VogliadiMara) [in totale 3 mail)
+
+- Il Window Dresser devo solo occuparsi di gestire la vetrina dei prodotti(descrizione, prezzi, info e dettagli del prodotto), 
+	aggiungerne di nuovi o eliminare i vecchi e decidere quale prodotto deve essere visualizzato da quale ristorante
+
+- L'admin 
+	Può consultare lo storico degli ordini ricevuti dal ristorante
+	Può generare report sugli ordini (es. fatturato totale, ordini per periodo, ecc.)
+	Può vedere statistiche (piatti più venduti, clienti più attivi)
+

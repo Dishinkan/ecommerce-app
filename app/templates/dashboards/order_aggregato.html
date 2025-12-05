@@ -1,0 +1,171 @@
+<!-- app/templates/dashboards/order_aggregato.html -->
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Ordine Agglomerato</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  #empty-msg { color: gray; font-style: italic; margin-top: 12px; }
+  button {
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #f9f9f9;
+    cursor: pointer;
+  }
+  button.ghost { background: white; }
+  input.qty { width: 70px; }
+</style>
+</head>
+<body data-ristorante-id="{{ ristorante.id }}">
+<h1>Ordine Agglomerato</h1>
+
+<div id="empty-msg" style="display:none;">Il carrello è vuoto</div>
+
+<table id="order-table" style="display:none;">
+<thead>
+<tr>
+<th>Prodotto</th>
+<th>Prezzo Unitario</th>
+<th>Quantità</th>
+<th>Subtotale</th>
+<th>Azioni</th>
+</tr>
+</thead>
+<tbody></tbody>
+<tfoot>
+<tr>
+<td colspan="3"><strong>Totale</strong></td>
+<td id="totale">0.00</td>
+<td></td>
+</tr>
+</tfoot>
+</table>
+
+<script>
+async function loadOrdine() {
+    try {
+        const ristoranteId = parseInt(document.body.dataset.ristoranteId);
+        const resp = await fetch(`/ordini/order_manager/order_aggregato?ristorante_id=${ristoranteId}`);
+
+        if (!resp.ok) throw new Error("Ordine non trovato (GET)");
+        const data = await resp.json();
+
+        if (!data.righe || data.righe.length === 0) {
+            document.getElementById("empty-msg").style.display = "block";
+            document.getElementById("order-table").style.display = "none";
+            return;
+        }
+
+        const tbody = document.querySelector("#order-table tbody");
+        tbody.innerHTML = "";
+        let totale = 0;
+
+        data.righe.forEach(r => {
+            const prodotto = r.prodotto || {};
+            // compatibilità per ottenere l'id
+            const prodottoId = (r.prodotto_id !== undefined && r.prodotto_id !== null)
+                ? r.prodotto_id
+                : (prodotto.id !== undefined ? prodotto.id : null);
+
+            const quantita = Number(r.quantita) || 0;
+            const prezzo = Number(r.prezzo_unitario) || 0;
+            const subtot = quantita * prezzo;
+            totale += subtot;
+
+            const tr = document.createElement("tr");
+
+            const tdNome = document.createElement("td");
+            tdNome.textContent = prodotto.nome || "—";
+
+            const tdPrezzo = document.createElement("td");
+            tdPrezzo.textContent = `€${prezzo.toFixed(2)}`;
+
+            const tdQty = document.createElement("td");
+            const inputQty = document.createElement("input");
+            inputQty.type = "number";
+            inputQty.min = 0;
+            inputQty.value = quantita;
+            inputQty.className = "qty";
+            tdQty.appendChild(inputQty);
+
+            const tdSubtot = document.createElement("td");
+            tdSubtot.textContent = `€${subtot.toFixed(2)}`;
+
+            const tdAzioni = document.createElement("td");
+
+            const btnAggiorna = document.createElement("button");
+            btnAggiorna.textContent = "Aggiorna";
+            btnAggiorna.onclick = async () => {
+                if (prodottoId === null) {
+                    alert("Impossibile aggiornare: manca l'ID del prodotto.");
+                    return;
+                }
+                const newQty = Number(inputQty.value);
+                await aggiornaProdotto(prodottoId, newQty);
+            };
+
+            const btnRimuovi = document.createElement("button");
+            btnRimuovi.className = "ghost";
+            btnRimuovi.textContent = "Rimuovi";
+            btnRimuovi.onclick = async () => {
+                if (prodottoId === null) {
+                    alert("Impossibile rimuovere: manca l'ID del prodotto.");
+                    return;
+                }
+                if (!confirm(`Rimuovere ${prodotto.nome || 'questo prodotto'}?`)) return;
+                await aggiornaProdotto(prodottoId, 0);
+            };
+
+            tdAzioni.appendChild(btnAggiorna);
+            tdAzioni.appendChild(btnRimuovi);
+
+            tr.append(tdNome, tdPrezzo, tdQty, tdSubtot, tdAzioni);
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById("totale").textContent = totale.toFixed(2);
+        document.getElementById("empty-msg").style.display = "none";
+        document.getElementById("order-table").style.display = "table";
+
+    } catch (e) {
+        console.error("Errore loadOrdine:", e);
+        document.getElementById("empty-msg").textContent = "Errore caricamento ordine. Controlla il terminale.";
+        document.getElementById("empty-msg").style.display = "block";
+        document.getElementById("order-table").style.display = "none";
+    }
+}
+
+async function aggiornaProdotto(prodotto_id, quantita) {
+    try {
+        const resp = await fetch("/ordini/order_manager/order_aggregato", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify([{ prodotto_id: prodotto_id, quantita: quantita }])
+        });
+        if (!resp.ok) {
+            // prova a leggere il body come json, ma se non è json, acquisiscilo come testo
+            let errBody;
+            try {
+                errBody = await resp.json();
+            } catch (_e) {
+                errBody = await resp.text();
+            }
+            alert("Errore: " + (typeof errBody === "string" ? errBody : JSON.stringify(errBody)));
+            return;
+        }
+        await loadOrdine();
+    } catch (e) {
+        console.error("Errore aggiornaProdotto:", e);
+        alert("Errore di rete durante l'aggiornamento (vedi console).");
+    }
+}
+
+loadOrdine();
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+Create a multi-role e-commerce application with the following features:
+
+Platform Roles Order Manager:
+Can view the product catalog (storefront) assigned to their restaurant.
+
+Can enter quantities for the products they want to order.
+
+Orders are not sent immediately but saved in a temporary cart.
+
+At 4:00 PM, the system automatically finalizes the order, checks for abnormal quantities, notifies the user, and sends them a full order confirmation email.
+
+Window Dresser:
+
+Manages the storefront (products with name, description, supplier, images, price, notes).
+
+Decides, via flags, which products are visible to which restaurants/users.
+
+Cannot view or access the global order history.
+
+Admin (Restaurant Owner):
+
+Can view the order history only for their own restaurant.
+
+Database view with filtering and sorting options (by date, product, supplier, quantity, etc.).
+
+Order database fields: Restaurant name, User name, Product name, Quantity, Unit price, Total price, Supplier, Order date, Notes.
+
+Cannot access other restaurants’ data.
+
+Architect (Me, platform creator):
+
+A secret role that must remain completely hidden from all other roles.
+
+Has full visibility: total users, total restaurants, order history across all restaurants, subscription status.
+
+Can calculate expected revenue based on active restaurant subscriptions (each restaurant = one subscription, even if multiple users belong to it).
+
+Can suspend or block access to restaurants and their users if payments are missing or if discrepancies are detected.
+
+This role must never be visible or disclosed to clients (Order Managers, Admins, or Window Dressers).
+
+Order Management At 4:00 PM daily:
+Validate the order quantities.
+
+Send confirmation email to the user.
+
+Split orders by supplier and send one email per supplier, including the restaurant name and the full list of items/quantities ordered.
+
+Central Database Each order must be saved with:
+Restaurant name
+
+User name
+
+Product name
+
+Quantity
+
+Unit price
+
+Total price
+
+Supplier
+
+Order date
+
+Notes
+
+Business Model Revenue model = subscription per restaurant (not per user).
+The Architect role must be able to monitor the ratio of users to restaurants in order to calculate revenue and detect fraud or underreporting.
+
+If a restaurant does not pay, the Architect can block all associated users and lock the restaurant’s access.
+
+Mobile Accessibility The app must be fully usable on mobile devices with a responsive and optimized interface.

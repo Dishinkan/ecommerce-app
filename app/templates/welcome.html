@@ -1,0 +1,25 @@
+<!--app/templates/welcome.html-->
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Benvenuto - La Mia App</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f9fafb; }
+    .container { text-align: center; }
+    h1 { font-size: 32px; margin-bottom: 16px; }
+    img { max-width: 200px; margin-bottom: 24px; }
+    a.button { display: inline-block; padding: 12px 20px; border-radius: 8px; background: #111827; color: white; text-decoration: none; font-weight: bold; }
+    a.button:hover { background: #374151; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>La Mia App</h1>
+    <img src="/static/logo.png" alt="Logo app" />
+    <br />
+    <a href="/auth" class="button">Entra</a>
+  </div>
+</body>
+</html>

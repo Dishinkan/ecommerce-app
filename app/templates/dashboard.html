@@ -1,0 +1,27 @@
+<!--app/templates/dashboard.html-->
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+</head>
+<body>
+    <h1>Benvenuto, {{ user.email }}</h1>
+
+    <h3>Ruoli disponibili:</h3>
+    <ul>
+        {% for ruolo in user.ruoli %}
+            <li>
+                <form action="/dashboard/{{ ruolo }}" method="get" style="display:inline;">
+                    <button type="submit">{{ ruolo }}</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <form method="post" action="/logout">
+        <button type="submit">Logout</button>
+    </form>
+</body>
+</html>

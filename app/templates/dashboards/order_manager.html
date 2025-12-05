@@ -1,0 +1,210 @@
+<!-- app/templates/dashboards/order_manager.html -->
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard - Order Manager</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 24px;
+      display: grid;
+      grid-template-columns: 3fr 1fr; /* vetrina + sidebar */
+      gap: 24px;
+    }
+    h1 { margin-top: 0; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card img { width: 100%; height: 160px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; }
+    .card h4 { margin: 0 0 6px; font-size: 16px; }
+    .card p { flex: 1; font-size: 14px; color: #374151; margin: 0 0 8px; }
+    .actions { display: flex; gap: 6px; align-items: center; }
+    input.qty-input { width: 70px; padding: 6px; border: 1px solid #d1d5db; border-radius: 6px; }
+    button {
+      flex: 1;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid #111827;
+      background: #111827;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button.ghost { background: white; color: #111827; border-color: #d1d5db; }
+    .sidebar {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      height: fit-content;
+      position: sticky;
+      top: 24px;
+    }
+    .sidebar h3 { margin-top: 0; }
+    .order-list { display: grid; gap: 8px; margin: 12px 0; }
+    .order-item { display: flex; justify-content: space-between; flex-direction: column; font-size: 14px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+    .order-item .item-header { display: flex; justify-content: space-between; }
+    .order-item .item-actions { display: flex; gap: 6px; margin-top: 4px; }
+    .total { font-weight: bold; margin-top: 12px; }
+  </style>
+</head>
+<body data-ristorante-id="{{ ristorante.id }}">
+  <h1>Gestione Ordini - {{ ristorante.nome }}</h1>
+  <p>
+    <a href="{{ url_for('dashboard_ruolo', ruolo='order_manager') }}">
+      ← Cambia ristorante
+    </a>
+  </p>
+  
+  <!-- Colonna sinistra: vetrina -->
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h1>Vetrina prodotti</h1>
+      <button id="logout-btn" class="ghost">Logout</button>
+    </div>
+    <p>Ciao {{ user.email }}! Qui puoi gestire il tuo ordine.</p>
+
+    <div class="grid">
+      {% for p in prodotti %}
+      <div class="card" data-id="{{ p.id }}" data-nome="{{ p.nome }}" data-prezzo="{{ p.prezzo }}">
+        <img src="{{ p.immagine_url or '/static/placeholder.png' }}" alt="{{ p.nome }}">
+        <h4>{{ p.nome }} — €{{ "%.2f"|format(p.prezzo) }}/kg</h4>
+        <p>{{ p.descrizione or "—" }}</p>
+        <div class="actions">
+          <input type="number" min="1" value="1" class="qty-input">
+          <button class="add">+ Aggiungi</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  
+  <!-- Colonna destra: sidebar ordine -->
+  <div class="sidebar">
+    <h3>Il tuo ordine</h3>
+    <div class="order-list" id="order-list"></div>
+    <div class="total" id="order-total">Totale: €0.00</div>
+    <button id="checkout-btn" style="width:100%;margin-top:12px;">Conferma ordine</button>
+  </div>
+
+  <button 
+    onclick="window.location.href='/dashboard/order_manager/order_aggregato?ristorante_id={{ ristorante.id }}'">
+    Vedi Ordine Agglomerato
+  </button>
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const ordine = {};
+      const orderList = document.getElementById("order-list");
+      const orderTotal = document.getElementById("order-total");
+      const ristoranteId = parseInt(document.body.dataset.ristoranteId);
+
+      function aggiornaOrdine() {
+        orderList.innerHTML = "";
+        let total = 0;
+        Object.entries(ordine).forEach(([id, p]) => {
+          const row = document.createElement("div");
+          row.className = "order-item";
+
+          const header = document.createElement("div");
+          header.className = "item-header";
+          const spanNome = document.createElement("span");
+          spanNome.textContent = `${p.nome} × ${p.qty}`;
+          const spanPrezzo = document.createElement("span");
+          spanPrezzo.textContent = `€${(p.prezzo * p.qty).toFixed(2)}`;
+          header.appendChild(spanNome);
+          header.appendChild(spanPrezzo);
+          row.appendChild(header);
+
+          const actions = document.createElement("div");
+          actions.className = "item-actions";
+          const input = document.createElement("input");
+          input.type = "number"; input.min = 1; input.value = 1; input.style.width = "60px";
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "ghost"; removeBtn.textContent = "− Rimuovi";
+          removeBtn.onclick = () => {
+            const qtyToRemove = parseFloat(input.value);
+            p.qty -= qtyToRemove;
+            if (p.qty <= 0) delete ordine[id];
+            aggiornaOrdine();
+          };
+          actions.appendChild(input); actions.appendChild(removeBtn);
+          row.appendChild(actions);
+
+          orderList.appendChild(row);
+          total += p.prezzo * p.qty;
+        });
+        orderTotal.textContent = "Totale: €" + total.toFixed(2);
+      }
+
+      document.querySelectorAll(".card").forEach(card => {
+        const id = card.dataset.id;
+        const nome = card.dataset.nome;
+        const prezzo = parseFloat(card.dataset.prezzo);
+        const qtyInput = card.querySelector(".qty-input");
+
+        card.querySelector(".add").onclick = () => {
+          const qty = parseFloat(qtyInput.value);
+          if (!ordine[id]) ordine[id] = { nome, prezzo, qty: 0 };
+          ordine[id].qty += qty;
+          aggiornaOrdine();
+        };
+      });
+
+      // Checkout
+      document.getElementById("checkout-btn").onclick = async () => {
+        const righe = Object.entries(ordine).map(([prodotto_id, p]) => ({
+          prodotto_id: parseInt(prodotto_id),
+          quantita: p.qty
+        }));
+        if (righe.length === 0) { alert("Il tuo ordine è vuoto!"); return; }
+
+        try {
+          const resp = await fetch("/ordini/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              note: "", 
+              righe,
+              ristorante_id: ristoranteId
+            })
+          });
+
+          if (!resp.ok) {
+            const err = await resp.json();
+            alert("Errore: " + (err.detail || "Impossibile salvare l'ordine"));
+            return;
+          }
+
+          const data = await resp.json();
+          alert(`✅ Ordine confermato!\nTotale: €${data.totale.toFixed(2)}`);
+          for (const key in ordine) delete ordine[key];
+          aggiornaOrdine();
+
+        } catch (e) {
+          console.error(e);
+          alert("Errore di rete durante il salvataggio dell'ordine");
+        }
+      };
+
+      // Logout
+      document.getElementById("logout-btn").onclick = async () => {
+        try { await fetch("/logout", { method: "POST" }); window.location.href = "/"; }
+        catch (e) { console.error("Errore logout:", e); alert("Errore durante il logout"); }
+      };
+    });
+  </script>
+</body>
+</html>

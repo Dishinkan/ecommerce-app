@@ -1,0 +1,39 @@
+<!-- app/templates/dashboards/order_manager_select.html -->
+ 
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Seleziona Ristorante</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    h1 { margin-bottom: 20px; }
+    .ristoranti { display: grid; gap: 12px; max-width: 400px; }
+    .ristorante {
+      padding: 14px 18px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: #f9f9f9;
+      transition: background 0.2s;
+      cursor: pointer;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .ristorante:hover {
+      background: #f0f0f0;
+    }
+    a { text-decoration: none; color: inherit; }
+  </style>
+</head>
+<body>
+  <h1>Seleziona un ristorante</h1>
+  <div class="ristoranti">
+    {% for r in ristoranti %}
+      <a href="{{ url_for('dashboard_ruolo', ruolo='order_manager', ristorante_id=r.id) }}">
+        <div class="ristorante">{{ r.nome }}</div>
+      </a>
+    {% endfor %}
+  </div>
+</body>
+</html>

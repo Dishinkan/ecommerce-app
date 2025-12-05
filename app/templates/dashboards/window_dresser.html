@@ -1,0 +1,250 @@
+<!--app/templates/dashboards/window_dresser.html-->
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard - Window Dresser</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; }
+    h1 { margin-top: 0; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+    .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .row { display: grid; gap: 8px; margin-bottom: 12px; }
+    label { font-size: 12px; color: #374151; }
+    input, textarea, select { padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; }
+    button { padding: 8px 12px; border-radius: 10px; border: 1px solid #111827; background: #111827; color: white; cursor: pointer; }
+    button.ghost { background: white; color: #111827; border-color: #d1d5db; }
+    .products { display: grid; gap: 12px; }
+    .product { display: grid; grid-template-columns: 112px 1fr; gap: 16px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+    .product img { width: 112px; height: 112px; object-fit: cover; border-radius: 8px; background: #f3f4f6; }
+    .product h4 { margin: 0 0 8px; }
+    .row-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .badge { padding: 2px 8px; border-radius: 999px; border: 1px solid #e5e7eb; font-size: 12px; background: #f9fafb; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .vis { display: grid; gap: 6px; max-height: 180px; overflow: auto; border: 1px dashed #e5e7eb; padding: 8px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <h1>Dashboard Window Dresser</h1>
+    <button id="logout-btn" class="ghost">Logout</button>
+  </div>
+  <p>Benvenuto {{ user.email }}! Qui puoi gestire i prodotti in vetrina e la visibilità per ristorante.</p>
+
+  <div class="grid">
+    <!-- CREA / MODIFICA -->
+    <div class="card">
+      <h3 id="form-title">Crea nuovo prodotto</h3>
+      <form id="product-form">
+        <input type="hidden" id="prodotto_id" />
+        <div class="row">
+          <label for="nome">Nome</label>
+          <input id="nome" required />
+        </div>
+        <div class="row">
+          <label for="descrizione">Descrizione</label>
+          <textarea id="descrizione" rows="3"></textarea>
+        </div>
+        <div class="cols">
+          <div class="row">
+            <label for="prezzo">Prezzo (€)</label>
+            <input id="prezzo" type="number" step="0.01" required />
+          </div>
+          <div class="row">
+            <label for="fornitore">Fornitore ID</label>
+            <input id="fornitore" type="number" required />
+          </div>
+        </div>
+        <div class="row">
+          <label for="immagine">Immagine (opzionale)</label>
+          <input id="immagine" type="file" accept="image/*" />
+        </div>
+        <div class="row-actions">
+          <button type="submit">Salva</button>
+          <button type="button" class="ghost" id="reset-btn">Annulla</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- LISTA PRODOTTI -->
+    <div class="card">
+      <h3>Prodotti</h3>
+      <div class="products" id="products"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const productsEl = $("#products");
+    const form = $("#product-form");
+    const resetBtn = $("#reset-btn");
+
+    async function fetchJSON(url, options) {
+      const res = await fetch(url, options);
+      if (!res.ok) {
+        const t = await res.text().catch(()=> "");
+        throw new Error(`${res.status} ${res.statusText}: ${t}`);
+      }
+      return res.json();
+    }
+
+    async function loadProducts() {
+      const lista = await fetchJSON("/prodotti");
+      const ristoranti = await fetchJSON("/ristoranti");
+
+      productsEl.innerHTML = "";
+      for (const p of lista) {
+        const visIds = await fetchJSON(`/prodotti/${p.id}/visibilita`);
+        const card = document.createElement("div");
+        card.className = "product";
+
+        const img = document.createElement("img");
+        img.src = p.immagine_url || "/static/placeholder.png";
+        img.alt = p.nome;
+
+        const right = document.createElement("div");
+        const title = document.createElement("h4");
+        title.textContent = `${p.nome} — €${p.prezzo.toFixed(2)}`;
+
+        const desc = document.createElement("div");
+        desc.textContent = p.descrizione || "—";
+
+        const badges = document.createElement("div");
+        badges.className = "badges";
+        if (p.fornitore) {
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = `Fornitore: ${p.fornitore.nome}`;
+          badges.appendChild(b);
+        } else {
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = `Fornitore ID: ${p.fornitore_id}`;
+          badges.appendChild(b);
+        }
+
+        // visibilità
+        const visBox = document.createElement("div");
+        visBox.style.marginTop = "8px";
+        const visTitle = document.createElement("div");
+        visTitle.textContent = "Visibilità ristoranti:";
+        const visList = document.createElement("div");
+        visList.className = "vis";
+        for (const r of ristoranti) {
+          const lab = document.createElement("label");
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = visIds.includes(r.id);
+          cb.onchange = async (e) => {
+            const method = e.target.checked ? "POST" : "DELETE";
+            const url = `/prodotti/${p.id}/visibilita/${r.id}`;
+            const res = await fetch(url, { method });
+            if (!res.ok) {
+              alert("Errore aggiornando visibilità");
+              e.target.checked = !e.target.checked;
+            }
+          };
+          lab.appendChild(cb);
+          lab.appendChild(document.createTextNode(` ${r.nome}`));
+          visList.appendChild(lab);
+        }
+        visBox.appendChild(visTitle);
+        visBox.appendChild(visList);
+
+        // azioni riga
+        const actions = document.createElement("div");
+        actions.className = "row-actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.className = "ghost";
+        editBtn.textContent = "Modifica";
+        editBtn.onclick = () => {
+          $("#form-title").textContent = "Modifica prodotto";
+          $("#prodotto_id").value = p.id;
+          $("#nome").value = p.nome;
+          $("#descrizione").value = p.descrizione || "";
+          $("#prezzo").value = p.prezzo;
+          $("#fornitore").value = p.fornitore_id;
+          $("#immagine").value = null;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        };
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "Elimina";
+        delBtn.onclick = async () => {
+          if (!confirm(`Eliminare "${p.nome}"?`)) return;
+          const res = await fetch(`/prodotti/${p.id}`, { method: "DELETE" });
+          if (res.ok) loadProducts(); else alert("Errore eliminazione");
+        };
+
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+
+        right.appendChild(title);
+        right.appendChild(desc);
+        right.appendChild(badges);
+        right.appendChild(visBox);
+        right.appendChild(actions);
+
+        card.appendChild(img);
+        card.appendChild(right);
+        productsEl.appendChild(card);
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = $("#prodotto_id").value;
+      const fd = new FormData();
+      fd.append("nome", $("#nome").value);
+      fd.append("descrizione", $("#descrizione").value);
+      fd.append("prezzo", $("#prezzo").value);
+      fd.append("fornitore_id", $("#fornitore").value);
+      const file = $("#immagine").files[0];
+      if (file) fd.append("immagine", file);
+
+      const method = id ? "PUT" : "POST";
+      const url = id ? `/prodotti/${id}` : "/prodotti";
+
+      try {
+        const res = await fetch(url, { method, body: fd });
+        if (!res.ok) throw new Error(await res.text());
+        await res.json();
+        resetForm();
+        await loadProducts();
+      } catch (err) {
+        alert("Errore salvataggio: " + err.message);
+      }
+    });
+
+    function resetForm() {
+      $("#form-title").textContent = "Crea nuovo prodotto";
+      $("#prodotto_id").value = "";
+      $("#nome").value = "";
+      $("#descrizione").value = "";
+      $("#prezzo").value = "";
+      $("#fornitore").value = "";
+      $("#immagine").value = null;
+    }
+
+    resetBtn.addEventListener("click", resetForm);
+
+    // --- LOGOUT ---
+    document.querySelector("#logout-btn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/logout", { method: "POST" });
+        if (res.redirected) {
+          window.location.href = res.url;
+        }
+      } catch (err) {
+        alert("Errore durante il logout");
+      }
+    });
+
+    // avvio
+    loadProducts().catch(err => alert(err.message));
+  </script>
+</body>
+</html>

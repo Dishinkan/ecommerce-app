@@ -1,0 +1,226 @@
+<!-- app/templates/dashboards/superuser.html -->
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard - Superuser</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; }
+  h2 { margin-top: 32px; }
+  .card { border: 1px solid #ccc; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+  .user, .active-user { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+  .user:hover, .active-user:hover { background: #f0f0f0; }
+  button { padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer; margin-top: 6px; color: white; }
+  button:hover { opacity: 0.8; }
+  button.approve { background: #111827; }
+  button.approve:hover { background: #374151; }
+  button.add { background: #16a34a; }    /* verde */
+  button.remove { background: #dc2626; } /* rosso */
+  select, input { margin-top: 4px; margin-bottom: 6px; padding: 4px; border-radius: 4px; border: 1px solid #ccc; }
+  .sidebar { position: fixed; right: -400px; top: 0; width: 400px; height: 100%; background: #f9f9f9; border-left: 1px solid #ccc; overflow-y: auto; transition: right 0.3s; padding: 16px; }
+  .sidebar.active { right: 0; }
+  .ristorante-item { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .close-sidebar { float: right; cursor: pointer; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>Dashboard Superuser</h1>
+<p>Benvenuto {{ user.email }}! Hai accesso completo a tutte le funzionalità.</p>
+
+<!-- Sezione Utenti in attesa -->
+<div class="card">
+  <h3>Utenti in attesa</h3>
+  <div id="pending-users">Caricamento...</div>
+</div>
+
+<!-- Sezione Utenti attivi -->
+<div class="card">
+  <h3>Utenti attivi</h3>
+  <ul id="active-users">Caricamento...</ul>
+</div>
+
+<!-- Side bar ristoranti -->
+<div id="sidebar" class="sidebar">
+  <span class="close-sidebar" onclick="closeSidebar()">✖</span>
+  <h3 id="sidebar-user-email"></h3>
+  <div id="ristoranti-list"></div>
+</div>
+
+<a href="/dashboard">⬅ Torna alla Dashboard principale</a>
+
+<script>
+let pendingUsers = [];
+let activeUsers = [];
+let ristoranti = [];
+let currentUserId = null;
+
+// --- UTENTI IN ATTESA ---
+async function loadPendingUsers() {
+    const resU = await fetch("/users/pending");
+    const box = document.getElementById("pending-users");
+    if (!resU.ok) { box.textContent = "Errore caricando gli utenti"; return; }
+    pendingUsers = await resU.json();
+
+    const resR = await fetch("/ristoranti");
+    if (resR.ok) {
+        ristoranti = await resR.json();
+        ristoranti.sort((a, b) => a.nome.localeCompare(b.nome));
+    }
+
+    if (pendingUsers.length === 0) { box.textContent = "Nessun utente in attesa."; return; }
+    box.innerHTML = "";
+
+    for (const u of pendingUsers) {
+        const div = document.createElement("div");
+        div.className = "user";
+
+        const select = document.createElement("select");
+        select.id = `ristorante-select-${u.id}`;
+        const optAltro = document.createElement("option");
+        optAltro.value = "altro";
+        optAltro.textContent = "Altro";
+        select.appendChild(optAltro);
+
+        ristoranti.forEach(r => {
+            const opt = document.createElement("option");
+            opt.value = r.id;
+            opt.textContent = r.nome;
+            select.appendChild(opt);
+        });
+
+        const inputNew = document.createElement("input");
+        inputNew.type = "text";
+        inputNew.id = `ristorante-nuovo-${u.id}`;
+        inputNew.placeholder = "Nome nuovo ristorante";
+        inputNew.disabled = true;
+
+        select.addEventListener("change", () => {
+            inputNew.disabled = select.value !== "altro";
+            if (!inputNew.disabled) inputNew.focus(); else inputNew.value = "";
+        });
+
+        div.innerHTML = `
+            <strong>${u.email}</strong><br/>
+            Richiede ruoli: ${u.ruoli_richiesti.length ? u.ruoli_richiesti.join(", ") : "—"}<br/>
+            Ristorante richiesto: ${u.ristorante_richiesto || "—"}<br/>
+        `;
+        div.appendChild(select);
+        div.appendChild(inputNew);
+
+        const btn = document.createElement("button");
+        btn.textContent = "Approva";
+        btn.className = "approve";
+        btn.onclick = () => approveUser(u.id);
+        div.appendChild(btn);
+
+        box.appendChild(div);
+    }
+}
+
+async function approveUser(id) {
+    const select = document.getElementById(`ristorante-select-${id}`);
+    const input = document.getElementById(`ristorante-nuovo-${id}`);
+    const user = pendingUsers.find(u => u.id === id);
+
+    const payload = {
+        ristorante_id: select.value !== "altro" ? parseInt(select.value) : undefined,
+        nome_ristorante: select.value === "altro" ? input.value : undefined,
+        ruoli: user.ruoli_richiesti
+    };
+
+    if (!confirm("Vuoi approvare questo utente?")) return;
+
+    const res = await fetch(`/users/pending/approve/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) { alert("Utente approvato!"); loadPendingUsers(); loadActiveUsers(); }
+    else { const text = await res.text(); alert("Errore: " + text); console.error(text); }
+}
+
+// --- UTENTI ATTIVI ---
+async function loadActiveUsers() {
+    const res = await fetch("/users/active");
+    if (!res.ok) { document.getElementById("active-users").textContent = "Errore caricando utenti attivi"; return; }
+    activeUsers = await res.json();
+    const list = document.getElementById("active-users");
+    list.innerHTML = "";
+
+    activeUsers.forEach(u => {
+        const li = document.createElement("li");
+        li.className = "active-user";
+        li.textContent = u.email;
+        li.onclick = () => openSidebar(u);
+        list.appendChild(li);
+    });
+}
+
+// --- SIDE BAR ---
+function openSidebar(user) {
+    currentUserId = user.id;
+    document.getElementById("sidebar-user-email").textContent = user.email;
+    const container = document.getElementById("ristoranti-list");
+    container.innerHTML = "";
+
+    const associated = ristoranti.filter(r => user.ristoranti_ids.includes(r.id)).sort((a,b)=>a.nome.localeCompare(b.nome));
+    const notAssociated = ristoranti.filter(r => !user.ristoranti_ids.includes(r.id)).sort((a,b)=>a.nome.localeCompare(b.nome));
+
+    const addRistoranteItem = (r, associatedFlag) => {
+        const div = document.createElement("div");
+        div.className = "ristorante-item";
+        div.textContent = r.nome;
+        const btn = document.createElement("button");
+        btn.textContent = associatedFlag ? "−" : "+";
+        btn.className = associatedFlag ? "remove" : "add";
+        btn.onclick = async () => { await toggleRistorante(r.id, associatedFlag); };
+        div.appendChild(btn);
+        container.appendChild(div);
+    };
+
+    associated.forEach(r => addRistoranteItem(r, true));
+
+    if (associated.length && notAssociated.length) {
+        const sep = document.createElement("div");
+        sep.style.margin = "12px 0";
+        sep.style.borderTop = "1px solid #ccc";
+        container.appendChild(sep);
+    }
+
+    notAssociated.forEach(r => addRistoranteItem(r, false));
+
+    document.getElementById("sidebar").classList.add("active");
+}
+
+function closeSidebar() {
+    document.getElementById("sidebar").classList.remove("active");
+    currentUserId = null;
+}
+
+// --- AGGIUNGI/RIMUOVI RISTORANTE ---
+async function toggleRistorante(rid, isAssociated) {
+    if (!currentUserId) return;
+    const payload = { ristorante_id: rid, action: isAssociated ? "remove" : "add" };
+    const res = await fetch(`/users/${currentUserId}/ristoranti`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    if (res.ok) { loadActiveUsers(); openSidebar(activeUsers.find(u=>u.id===currentUserId)); }
+    else { alert("Errore durante l'aggiornamento"); }
+}
+
+// --- INIT ---
+async function init() {
+    const resR = await fetch("/ristoranti");
+    if (resR.ok) { ristoranti = await resR.json(); ristoranti.sort((a,b)=>a.nome.localeCompare(b.nome)); }
+    await loadPendingUsers();
+    await loadActiveUsers();
+}
+
+init();
+</script>
+</body>
+</html>
